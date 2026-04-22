@@ -20,6 +20,7 @@ The current codebase is designed for two runtime paths:
 - `hosted-browser`: static hosting on a public domain with no Python sidecar
 - `tauri`: optional desktop shell for local workflows and future packaged builds
 
+The web version is already available at the link: https://instradoc.mxlv.pw/
 ## Highlights
 
 - Browser-first instruction editor with import/export flows
