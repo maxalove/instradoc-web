@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://instradoc.example.com/sitemap.xml

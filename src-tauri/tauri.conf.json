@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "InstraDoc Beta v.2",
+  "version": "2.0.0-beta.2",
+  "identifier": "com.instradoc.betav2",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "InstraDoc Beta v.2",
+        "width": 1320,
+        "height": 860,
+        "minWidth": 1180,
+        "minHeight": 760,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src http://127.0.0.1:8765; img-src 'self' data: http://127.0.0.1:8765; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": [
+      "../../sidecar",
+      "../../sidecar_main.py",
+      "../../src",
+      "../../requirements.txt"
+    ]
+  }
+}
