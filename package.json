@@ -2,6 +2,7 @@
   "name": "instradoc-beta-v2",
   "private": true,
   "version": "2.0.0-beta.2",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
