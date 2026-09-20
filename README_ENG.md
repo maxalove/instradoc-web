@@ -180,6 +180,9 @@ and localisation all work. The desktop shell and backend-backed workflows are st
 
 ## License
 
-No license has been chosen yet. Without one, default copyright applies and third parties
-may not use, modify or redistribute the code. If this repository is meant to be open
-source, add a `LICENSE` file (MIT, for example).
+Released under the [MIT License](./LICENSE) — you may freely use, modify and embed the
+code in your own projects, commercial ones included, as long as the license text and
+copyright notice are preserved. The software is provided "as is", without warranty.
+
+The license covers the source code. The "InstraDoc" name, logo and app icons are not
+included: a fork should not present itself as the original project.
