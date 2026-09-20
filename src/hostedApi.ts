@@ -116,7 +116,7 @@ export const hostedApi = {
     for (const file of files) {
       const bytes = base64ToBytes(file.dataBase64);
       if (bytes.byteLength > MAX_IMAGE_BYTES) throw new Error("Image is larger than 15 MB.");
-      const mime = detectImageMime(bytes, file.name);
+      const mime = detectImageMime(bytes);
       if (!mime) throw new Error("Unsupported or invalid image file.");
       const dataUrl = `data:${mime};base64,${bytesToBase64(bytes)}`;
       await validateImageDimensions(dataUrl);
@@ -189,7 +189,13 @@ export const hostedApi = {
     const project = await requireProject(projectId);
     const blob = await exportProjectBlob(project, format);
     const url = objectUrl(blob);
-    return { path: url, downloadName: downloadName(project, format), format };
+    const name = downloadName(project, format);
+    // A hosted export is a browser download, so the filename is the only durable
+    // marker we have — it is what turns the project card badge into "PDF ready".
+    if (format === "pdf") {
+      await putProject({ ...project, last_pdf_path: name, lastPdfPath: name });
+    }
+    return { path: url, downloadName: name, format };
   },
   exportDownloadUrl: (projectId: string, path: string) => path,
   hideRecentProject: async (projectId: string) => {
@@ -309,7 +315,7 @@ async function importProjectArchive(file: File) {
     const path = step.image_path.replace(/\\/g, "/");
     const bytes = archive[path];
     if (!bytes) return normalizeStep({ ...step, order: index, image_path: "" });
-    const mime = detectImageMime(bytes, path);
+    const mime = detectImageMime(bytes);
     if (!mime) throw new Error(`Invalid image in archive: ${path}`);
     return normalizeStep({ ...step, order: index, image_path: `data:${mime};base64,${bytesToBase64(bytes)}` });
   });
@@ -655,7 +661,7 @@ async function validateImageDimensions(dataUrl: string) {
   }
 }
 
-function detectImageMime(bytes: Uint8Array, name: string) {
+function detectImageMime(bytes: Uint8Array) {
   if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
   if (bytes[0] === 0x42 && bytes[1] === 0x4d) return "image/bmp";
@@ -669,7 +675,9 @@ function detectImageMime(bytes: Uint8Array, name: string) {
     bytes[10] === 0x42 &&
     bytes[11] === 0x50
   ) return "image/webp";
-  return /\.(png|jpe?g|webp|bmp)$/i.test(name) ? "" : "";
+  // No magic-byte match: the file is not one of the formats we can render, whatever
+  // its extension claims. Returning "" makes the caller reject it.
+  return "";
 }
 
 function extensionFromDataUrl(dataUrl: string) {
@@ -788,6 +796,7 @@ function hostedTrash(project: Project): TrashItem[] {
 }
 
 function projectSummary(project: Project): ProjectSummary {
+  const lastPdfPath = project.last_pdf_path || project.lastPdfPath || "";
   return {
     id: project.id,
     folder: project.folder,
@@ -798,8 +807,8 @@ function projectSummary(project: Project): ProjectSummary {
     modified: project.modified,
     created: project.created,
     stepCount: project.steps.length,
-    lastPdfPath: "",
-    status: "draft"
+    lastPdfPath,
+    status: lastPdfPath ? "exported" : "draft"
   };
 }
 

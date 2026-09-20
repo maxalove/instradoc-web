@@ -1,72 +1,204 @@
+/*
+ * InstraDoc design tokens.
+ *
+ * Every colour, radius, spacing step and motion value used by the UI lives here.
+ * `app.css` must not hardcode colours — it consumes these variables only, which is
+ * what keeps the light and dark themes in sync.
+ *
+ * The theme is selected by `data-theme` on <html> ("dark" | "light"), written by App.tsx.
+ */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* --- Canvas ------------------------------------------------------------ */
+  --bg-base: #060b16;
+  --bg-gradient: linear-gradient(135deg, #050a14 0%, #101c33 46%, #050a14 100%);
+  --grid-stroke: rgba(255, 255, 255, 0.06);
+  --grid-opacity: 0.5;
+  --glow-primary: rgba(59, 130, 246, 0.16);
+  --glow-secondary: rgba(168, 85, 247, 0.14);
+  --glow-opacity: 1;
+
+  /* --- Surfaces ---------------------------------------------------------- */
+  --surface-1: rgba(255, 255, 255, 0.03);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --surface-3: rgba(255, 255, 255, 0.1);
+  --surface-inset: rgba(255, 255, 255, 0.05);
+  --surface-overlay: rgba(15, 23, 42, 0.92);
+  --surface-solid: #0f172a;
+  --surface-sheen: rgba(255, 255, 255, 0.08);
+
+  /* --- Lines ------------------------------------------------------------- */
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
+
+  /* --- Text -------------------------------------------------------------- */
+  --text: #f8fafc;
+  --text-muted: rgba(248, 250, 252, 0.68);
+  --text-subtle: rgba(248, 250, 252, 0.5);
+  --text-on-accent: #ffffff;
+
+  /* --- Accent ------------------------------------------------------------ */
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-gradient: linear-gradient(180deg, #4f8ff7, #2563eb);
+  --accent-text: #93c5fd;
+  --accent-soft: rgba(59, 130, 246, 0.14);
+  --accent-border: rgba(96, 165, 250, 0.38);
+  --accent-glow: rgba(59, 130, 246, 0.32);
+  --accent-duo: linear-gradient(135deg, rgba(59, 130, 246, 0.24), rgba(168, 85, 247, 0.22));
+
+  /* --- Feedback ---------------------------------------------------------- */
+  --success: #4ade80;
+  --success-soft: rgba(34, 197, 94, 0.16);
+  --success-border: rgba(74, 222, 128, 0.32);
+  --warning: #fbbf24;
+  --warning-soft: rgba(250, 204, 21, 0.14);
+  --warning-border: rgba(250, 204, 21, 0.34);
+  --danger: #f87171;
+  --danger-soft: rgba(239, 68, 68, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.32);
+
+  /* --- Depth ------------------------------------------------------------- */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.44);
+  --shadow-accent: 0 6px 22px var(--accent-glow);
+  --ring: 0 0 0 3px rgba(96, 165, 250, 0.42);
+
+  /* --- Canvas stage ------------------------------------------------------ */
+  --stage-bg: linear-gradient(135deg, rgba(30, 41, 59, 0.42), rgba(15, 23, 42, 0.72));
+  --stage-surface: rgba(255, 255, 255, 0.03);
+}
+
+/*
+ * Theme-independent values. Annotations and their handles sit on top of the user's
+ * screenshot, not on our surfaces, so they must stay legible in both themes.
+ */
 :root {
+  --scrim: rgba(2, 6, 23, 0.62);
+  --annotation-shadow: 0 2px 2px rgba(0, 0, 0, 0.35);
+  --handle-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  --handle-fill: #ffffff;
+}
+
+:root[data-theme="light"] {
   color-scheme: light;
-  --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --window-bg: #edf5fb;
-  --panel-bg: rgba(255, 255, 255, 0.78);
-  --panel-alt: rgba(246, 251, 255, 0.88);
-  --panel-soft: rgba(255, 255, 255, 0.62);
-  --canvas-bg: #dfeaf3;
-  --border: rgba(138, 176, 209, 0.4);
-  --border-strong: rgba(97, 146, 189, 0.62);
-  --text: #102131;
-  --text-muted: #4f6476;
-  --text-soft: #7e92a4;
-  --accent: #2c9ccf;
-  --accent-hover: #2289ba;
-  --accent-soft: rgba(44, 156, 207, 0.14);
-  --accent-strong: #1d6d95;
-  --danger: #d85b74;
-  --danger-bg: rgba(255, 236, 241, 0.92);
-  --success: #198b62;
-  --success-bg: rgba(218, 248, 235, 0.92);
-  --shadow-panel: 0 18px 58px rgba(58, 91, 121, 0.16);
-  --shadow-control: 0 8px 24px rgba(54, 92, 126, 0.12);
+  --bg-base: #eef2f8;
+  --bg-gradient: linear-gradient(135deg, #f6f9fd 0%, #e6edf7 46%, #f3f6fb 100%);
+  --grid-stroke: rgba(15, 23, 42, 0.05);
+  --grid-opacity: 0.6;
+  --glow-primary: rgba(59, 130, 246, 0.16);
+  --glow-secondary: rgba(168, 85, 247, 0.12);
+  --glow-opacity: 0.7;
 
-  --radius-panel: 22px;
-  --radius-panel-compact: 18px;
-  --radius-control: 14px;
-  --radius-button: 15px;
-  --radius-menu: 12px;
-  --radius-canvas: 24px;
+  --surface-1: rgba(255, 255, 255, 0.58);
+  --surface-2: rgba(255, 255, 255, 0.82);
+  --surface-3: rgba(255, 255, 255, 0.96);
+  --surface-inset: rgba(255, 255, 255, 0.92);
+  --surface-overlay: rgba(255, 255, 255, 0.96);
+  --surface-solid: #ffffff;
+  --surface-sheen: rgba(255, 255, 255, 0.9);
 
+  --border-subtle: rgba(15, 23, 42, 0.07);
+  --border: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.22);
+
+  --text: #0f172a;
+  --text-muted: rgba(15, 23, 42, 0.7);
+  --text-subtle: rgba(15, 23, 42, 0.56);
+  --text-on-accent: #ffffff;
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-gradient: linear-gradient(180deg, #3b82f6, #2563eb);
+  --accent-text: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --accent-border: rgba(37, 99, 235, 0.32);
+  --accent-glow: rgba(37, 99, 235, 0.24);
+  --accent-duo: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(168, 85, 247, 0.14));
+
+  --success: #15803d;
+  --success-soft: rgba(34, 197, 94, 0.14);
+  --success-border: rgba(21, 128, 61, 0.28);
+  --warning: #b45309;
+  --warning-soft: rgba(245, 158, 11, 0.14);
+  --warning-border: rgba(180, 83, 9, 0.28);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.08);
+  --danger-border: rgba(220, 38, 38, 0.26);
+
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 8px 30px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.16);
+  --shadow-accent: 0 6px 22px var(--accent-glow);
+  --ring: 0 0 0 3px rgba(37, 99, 235, 0.28);
+
+  --stage-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(226, 236, 248, 0.92));
+  --stage-surface: rgba(15, 23, 42, 0.035);
+}
+
+:root {
+  /* --- Typography -------------------------------------------------------- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, Arial, sans-serif;
+
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --text-hero: clamp(32px, 4.6vw, 52px);
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* --- Radii ------------------------------------------------------------- */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-pill: 999px;
+
+  /* --- Spacing ----------------------------------------------------------- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-7: 28px;
   --space-8: 32px;
   --space-10: 40px;
+  --space-12: 48px;
 
+  /* --- Sizing ------------------------------------------------------------ */
+  --control-height: 38px;
+  --control-height-sm: 32px;
+  --control-height-lg: 44px;
+  --side-panel-width: 300px;
+  --shell-max: 1600px;
+
+  /* --- Motion ------------------------------------------------------------ */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-fast: 140ms;
-  --motion-base: 220ms;
+  --motion-base: 200ms;
   --motion-slow: 320ms;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-}
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --window-bg: #0c1722;
-  --panel-bg: rgba(22, 35, 48, 0.84);
-  --panel-alt: rgba(30, 45, 60, 0.88);
-  --panel-soft: rgba(20, 31, 43, 0.66);
-  --canvas-bg: #24394a;
-  --border: rgba(117, 161, 196, 0.36);
-  --border-strong: rgba(149, 191, 224, 0.58);
-  --text: #ebf5ff;
-  --text-muted: #afc4d8;
-  --text-soft: #7e9ab2;
-  --accent: #4bb0df;
-  --accent-hover: #61c1ee;
-  --accent-soft: rgba(75, 176, 223, 0.22);
-  --accent-strong: #9cdbff;
-  --danger: #ff9ab0;
-  --danger-bg: rgba(70, 35, 45, 0.9);
-  --success: #68d9a2;
-  --success-bg: rgba(25, 95, 70, 0.52);
-  --shadow-panel: 0 18px 64px rgba(0, 0, 0, 0.26);
-  --shadow-control: 0 8px 24px rgba(0, 0, 0, 0.18);
+  /* --- Effects ----------------------------------------------------------- */
+  --blur-panel: blur(28px);
+  --blur-overlay: blur(40px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -76,4 +208,3 @@
     --motion-slow: 1ms;
   }
 }
-

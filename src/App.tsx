@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle, ArrowLeft, ArrowRight, Calendar, Camera, CheckCircle2, CheckSquare, Circle, Code,
-  Download, EyeOff, FileText, Grid3x3, History, Image as ImageIcon, List, MousePointer, Pencil, Plus, RotateCcw,
-  Save, Scissors, Search, Settings, Sparkles, Square, Trash2, Type, User, X, type LucideIcon
+  Download, EyeOff, FileText, FileType2, Grid3x3, History, Image as ImageIcon, Info, List, Maximize2, Minus, Moon,
+  MousePointer, Pencil, Plus, RotateCcw, Save, Scissors, Search, Settings, Share2, ShieldCheck, Sparkles,
+  Square, Sun, Trash2, Type, Upload, User, X, type LucideIcon
 } from "lucide-react";
 import { api } from "./api";
 import { Button } from "./components/Controls";
 import { hostedStepImageUrl, isHostedBrowserRuntime } from "./hostedApi";
-import { makeTranslator } from "./i18n";
+import { makeStepCounter, makeTranslator } from "./i18n";
 import type {
   Annotation, AnnotationType, AppSettings, AppStatus, CaptureMode, ExportFormat, HistorySnapshot,
   Note, PreflightIssue, Project, ProjectSummary, Step, TrashItem
@@ -84,7 +85,9 @@ export function App() {
   const projectRef = useRef<Project | null>(null);
   const writeSeqRef = useRef(0);
   const toastId = useRef(0);
+  const toastTimers = useRef(new Map<number, number>());
   const t = useMemo(() => makeTranslator(settings?.language ?? "ru"), [settings?.language]);
+  const countSteps = useMemo(() => makeStepCounter(settings?.language ?? "ru"), [settings?.language]);
 
   const selectedStep = useMemo(
     () => project?.steps.find((s) => s.id === selectedStepId) ?? project?.steps[0] ?? null,
@@ -98,8 +101,14 @@ export function App() {
   const filteredSteps = useMemo(() => filterSteps(project?.steps ?? [], stepSearch), [project, stepSearch]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = settings?.theme_mode === "light" ? "figma-light" : "figma-dark";
+    const theme = settings?.theme_mode === "light" ? "light" : "dark";
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#eef2f8" : "#060b16");
   }, [settings?.theme_mode]);
+
+  useEffect(() => {
+    document.documentElement.lang = settings?.language ?? "ru";
+  }, [settings?.language]);
 
   useEffect(() => {
     projectRef.current = project;
@@ -119,6 +128,12 @@ export function App() {
       }
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
+      if (key === "s" || event.code === "KeyS") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (view === "editor") void saveProjectNow();
+        return;
+      }
       const isUndoKey = key === "z" || event.code === "KeyZ";
       const isRedoKey = key === "y" || event.code === "KeyY" || (isUndoKey && event.shiftKey);
       if (!isUndoKey && !isRedoKey) return;
@@ -164,6 +179,15 @@ export function App() {
     setPan((current) => constrainPan(current, zoom));
   }, [stageSize.width, stageSize.height, imageMetrics.width, imageMetrics.height, zoom]);
 
+  // React registers wheel listeners as passive, so preventDefault() from an onWheel
+  // prop is ignored and the page scrolls while zooming. Bind it directly instead.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.addEventListener("wheel", handleCanvasWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", handleCanvasWheel);
+  }, [view, selectedStepId, zoom, pan, stageSize, imageMetrics]);
+
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       if (event.code !== "Space" || isTypingTarget(event.target)) return;
@@ -184,10 +208,7 @@ export function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const timers = toasts.filter((x) => !x.persistent).map((x) => window.setTimeout(() => closeToast(x.id), x.type === "error" ? 6500 : 4500));
-    return () => timers.forEach(window.clearTimeout);
-  }, [toasts]);
+  useEffect(() => () => toastTimers.current.forEach(window.clearTimeout), []);
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
@@ -231,13 +252,23 @@ export function App() {
   }
 
   function toast(message: string, type: Toast["type"] = "info", persistent = false, action?: { label: string; url: string; downloadName?: string }) {
+    const id = ++toastId.current;
     setToasts((current) => [
       ...current.slice(-2),
-      { id: ++toastId.current, type, message, persistent, actionLabel: action?.label, actionUrl: action?.url, actionDownloadName: action?.downloadName }
+      { id, type, message, persistent, actionLabel: action?.label, actionUrl: action?.url, actionDownloadName: action?.downloadName }
     ]);
+    // Each toast owns its timer, so a newer toast never extends an older one's life.
+    if (!persistent) {
+      toastTimers.current.set(id, window.setTimeout(() => closeToast(id), type === "error" ? 6500 : 4500));
+    }
   }
 
   function closeToast(id: number) {
+    const timer = toastTimers.current.get(id);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      toastTimers.current.delete(id);
+    }
     setToasts((current) => current.filter((item) => item.id !== id));
   }
 
@@ -380,7 +411,7 @@ export function App() {
     }
   }
 
-  async function importFiles(files: FileList | File[]) {
+  async function importFiles(files: FileList | File[], successMessage = t("importDone")) {
     if (!project) return toast(t("openProjectFirst"), "error");
     const selected = Array.from(files);
     if (!selected.length) return;
@@ -392,7 +423,7 @@ export function App() {
       setSelectedStepId(result.steps[result.steps.length - 1]?.id ?? result.project.steps[0]?.id ?? "");
       setSelectedAnnotationId("");
       setProjects(await api.projects());
-      toast(t("importDone"), "success");
+      toast(successMessage, "success");
     });
   }
 
@@ -402,13 +433,12 @@ export function App() {
       await captureBrowserWindow();
       return;
     }
-    let rect: { x: number; y: number; w: number; h: number } | undefined;
-    if (mode === "region") {
+    if (mode === "region" && status?.runtimeMode !== "desktop") {
       toast(t("regionDesktopOnly"), "info");
       return;
     }
     await run(async () => {
-      const result = await api.captureStep(project.id, mode, rect);
+      const result = await api.captureStep(project.id, mode);
       setProject(result.project);
       setSelectedStepId(result.step.id);
       setSelectedAnnotationId("");
@@ -442,8 +472,7 @@ export function App() {
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Unable to encode screenshot");
       const file = new File([blob], `screen_${Date.now()}.png`, { type: "image/png" });
-      await importFiles([file]);
-      toast(t("captureDone"), "success");
+      await importFiles([file], t("captureDone"));
     } catch (error) {
       const name = error instanceof DOMException ? error.name : "";
       toast(name === "NotAllowedError" || name === "AbortError" ? t("captureCancelled") : error instanceof Error ? error.message : String(error), name === "NotAllowedError" || name === "AbortError" ? "info" : "error");
@@ -471,6 +500,9 @@ export function App() {
       const downloadUrl = api.exportDownloadUrl(project.id, result.path);
       startBrowserDownload(downloadUrl, result.downloadName);
       toast(`${t("exportReady")}: ${result.downloadName || format.toUpperCase()}`, "success", false, { label: t("download"), url: downloadUrl, downloadName: result.downloadName });
+      // Exporting can stamp the project (last PDF path); reload it so later saves
+      // do not write the pre-export copy back over that stamp.
+      setProjectState(await api.project(project.id));
       setProjects(await api.projects());
     });
   }
@@ -509,6 +541,36 @@ export function App() {
       setModal(null);
       toast(t("settingsSaved"), "success");
     });
+  }
+
+  // The editor autosaves on every edit; this forces a full flush so "Save" is not a no-op.
+  async function saveProjectNow() {
+    const current = projectRef.current;
+    if (!current) return;
+    const writeSeq = nextWriteSeq();
+    setSaveState("saving");
+    try {
+      const saved = await api.updateProject(current.id, current);
+      if (writeSeqRef.current !== writeSeq) return;
+      setProjectState({ ...current, modified: saved.modified || current.modified });
+      setSaveState("saved");
+      setProjects(await api.projects());
+      toast(t("projectSaved"), "success");
+    } catch (error) {
+      setSaveState("error");
+      toast(error instanceof Error ? error.message : String(error), "error");
+    }
+  }
+
+  async function toggleTheme() {
+    const next: AppSettings["theme_mode"] = settings?.theme_mode === "light" ? "dark" : "light";
+    setSettings((current) => (current ? { ...current, theme_mode: next } : current));
+    setSettingsDraft((current) => ({ ...current, theme_mode: next }));
+    try {
+      await api.saveSettings({ theme_mode: next });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : String(error), "error");
+    }
   }
 
   async function deleteStep() {
@@ -743,7 +805,7 @@ export function App() {
     };
   }
 
-  function handleCanvasWheel(event: React.WheelEvent<HTMLDivElement>) {
+  function handleCanvasWheel(event: WheelEvent) {
     event.preventDefault();
     if (event.shiftKey) {
       setPan((current) => constrainPan({ ...current, x: current.x - event.deltaY }, zoom));
@@ -807,13 +869,15 @@ export function App() {
     };
   }
 
-  function resetZoom() {
+  // zoom === 1 means "fit the stage"; the displayed percentage is the real scale
+  // against the source pixels, so these two controls do different things.
+  function fitCanvas() {
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }
 
-  function fitCanvas() {
-    setZoom(1);
+  function zoomToActualSize() {
+    setZoom(clamp(Number((1 / canvasFitScale()).toFixed(2)), 0.25, 4));
     setPan({ x: 0, y: 0 });
   }
 
@@ -902,6 +966,33 @@ export function App() {
     return isHostedBrowserRuntime ? hostedStepImageUrl(step) : api.stepImageUrl(project?.id ?? "", step.id, cacheKey);
   }
 
+  // Preflight codes are localized here; the raw backend message is the fallback.
+  function issueMessage(issue: PreflightIssue) {
+    const key = `preflight_${issue.code}`;
+    const translated = t(key);
+    return translated === key ? issue.message : translated;
+  }
+
+  // Position within the whole project, so numbering stays stable while the list is filtered.
+  function stepNumber(stepId: string) {
+    return (project?.steps.findIndex((step) => step.id === stepId) ?? -1) + 1;
+  }
+
+  function themeToggle() {
+    const light = settings?.theme_mode === "light";
+    return (
+      <Button
+        variant="tertiary"
+        className="btn-icon"
+        onClick={toggleTheme}
+        title={light ? t("switchToDark") : t("switchToLight")}
+        aria-label={light ? t("switchToDark") : t("switchToLight")}
+      >
+        {light ? <Moon size={17} /> : <Sun size={17} />}
+      </Button>
+    );
+  }
+
   return (
     <div className="figma-app" onMouseDown={(event) => { if (!(event.target as Element | null)?.closest(".figma-annotation-menu")) setAnnotationMenu(null); }} onContextMenu={(event) => event.preventDefault()}>
       <div className="figma-bg-grid" aria-hidden="true" />
@@ -929,18 +1020,19 @@ export function App() {
           event.currentTarget.value = "";
         }}
       />
+      {busy && <div className="figma-busy-bar" role="progressbar" aria-label={t("working")} />}
       <div className="figma-toast-stack">
         {toasts.map((item) => (
           <div className={`figma-toast figma-toast-${item.type}`} role={item.type === "error" ? "alert" : "status"} key={item.id}>
-            {item.type === "error" ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+            {item.type === "error" ? <AlertTriangle size={17} /> : item.type === "info" ? <Info size={17} /> : <CheckCircle2 size={17} />}
             <span>{item.message}</span>
             {item.actionUrl && (
               <a className="figma-toast-action" href={item.actionUrl} download={item.actionDownloadName}>
                 {item.actionLabel}
               </a>
             )}
-            <button onClick={() => closeToast(item.id)} aria-label="Dismiss notification">
-              <X size={16} />
+            <button onClick={() => closeToast(item.id)} aria-label={t("dismiss")}>
+              <X size={15} />
             </button>
           </div>
         ))}
@@ -965,9 +1057,13 @@ export function App() {
                 </div>
               </div>
               <div className="figma-inline-actions">
+                {themeToggle()}
+                <Button variant="tertiary" className="btn-icon" onClick={() => setModal("settings")} title={t("settings")} aria-label={t("settings")}>
+                  <Settings size={18} />
+                </Button>
                 {isHostedBrowserRuntime && (
                   <Button variant="tertiary" onClick={() => projectArchiveInputRef.current?.click()} disabled={busy}>
-                    <Download size={18} />
+                    <Upload size={18} />
                     {t("importProjectArchive")}
                   </Button>
                 )}
@@ -982,48 +1078,53 @@ export function App() {
         <section className="figma-shell figma-home-content">
           <div className="figma-hero-copy">
             <span className="figma-kicker">
-              <Sparkles size={16} />
-              {status?.versionLabel ?? "Beta v.2"} - {t("betaConcept")}
+              <Sparkles size={15} />
+              {status?.versionLabel ?? "Beta v.2"} · {t("betaConcept")}
             </span>
             <h2>{t("heroTitle")}</h2>
             <p>{t("heroBody")}</p>
-            {isHostedBrowserRuntime && <p className="figma-muted-copy">{t("hostedPrivacy")}</p>}
+            {isHostedBrowserRuntime && (
+              <p className="figma-muted-copy">
+                <ShieldCheck size={16} />
+                <span>{t("hostedPrivacy")}</span>
+              </p>
+            )}
           </div>
           <div className="figma-search-row">
             <label className="figma-search">
-              <Search size={19} />
+              <Search size={18} />
               <input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder={t("searchProjects")} />
             </label>
-            <div className="figma-segmented" aria-label="View mode">
-              <button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")}><Grid3x3 size={19} /></button>
-              <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}><List size={19} /></button>
+            <div className="figma-segmented" role="group" aria-label={t("viewMode")}>
+              <button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")} title={t("viewGrid")} aria-label={t("viewGrid")} aria-pressed={viewMode === "grid"}><Grid3x3 size={17} /></button>
+              <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")} title={t("viewList")} aria-label={t("viewList")} aria-pressed={viewMode === "list"}><List size={17} /></button>
             </div>
           </div>
           <section>
             <div className="figma-section-title">
               <h3>{t("recentProjects")}</h3>
-              <span>{filteredProjects.length} {t("visible")}</span>
+              <span>{t("visible")}: {filteredProjects.length}</span>
             </div>
             {filteredProjects.length === 0 ? (
               <div className="figma-empty"><FileText size={44} /><strong>{t("noProjects")}</strong><span>{t("noProjectsBody")}</span></div>
             ) : (
               <div className={viewMode === "grid" ? "figma-project-grid" : "figma-project-list"}>
                 {filteredProjects.map((item) => (
-                  <article className="figma-project-card" key={item.folder}>
+                  <article className="figma-project-card" key={item.id}>
                     <button className="figma-project-open" onClick={() => openProject(item.id)}>
-                      <div className="figma-project-icon"><FileText size={24} /></div>
+                      <div className="figma-project-icon"><FileText size={22} /></div>
                       <div className="figma-project-main">
-                        <h4>{item.name}</h4>
+                        <h4 title={item.name}>{item.name}</h4>
                         <p>{item.description || t("noDescription")}</p>
                         <div className="figma-project-meta">
-                          <span><User size={14} />{item.author || t("unknownAuthor")}</span>
-                          <span><Calendar size={14} />{item.modified}</span>
-                          <span><FileText size={14} />{item.stepCount} {t("steps")}</span>
+                          <span className={`figma-status ${item.status}`}>{item.status === "exported" ? t("pdfReady") : t("draft")}</span>
+                          <span><FileText size={13} />{countSteps(item.stepCount)}</span>
+                          <span><User size={13} />{item.author || t("unknownAuthor")}</span>
+                          <span><Calendar size={13} />{item.modified}</span>
                         </div>
                       </div>
                     </button>
-                    <span className={`figma-status ${item.status}`}>{item.status === "exported" ? t("pdfReady") : t("draft")}</span>
-                    <button className="figma-project-hide" onClick={() => hideRecentProject(item.id)} title={t("hideProject")} aria-label={t("hideProject")}><X size={16} /></button>
+                    <button className="figma-project-hide" onClick={() => hideRecentProject(item.id)} title={t("hideProject")} aria-label={t("hideProject")}><X size={15} /></button>
                   </article>
                 ))}
               </div>
@@ -1055,36 +1156,66 @@ export function App() {
             <div className="figma-divider" />
             <div className="figma-editor-title-text">
               <h1 title={project.name}>{project.name}</h1>
-              <p>{t("lastSaved")}: {project.modified} - {saveState === "saving" ? t("saving") : saveState === "error" ? t("saveError") : t("saved")}</p>
+              <p className="figma-editor-meta">
+                <span>{t("lastSaved")}: {project.modified}</span>
+                <span className={`figma-save-state ${saveState}`}>
+                  {saveState === "saving" ? t("saving") : saveState === "error" ? t("saveError") : t("saved")}
+                </span>
+              </p>
             </div>
           </div>
           <div className="figma-editor-actions">
-            <Button variant="tertiary" onClick={openHistory}><History size={16} />{t("history")}</Button>
-            <Button variant="tertiary" onClick={openTrash}><Trash2 size={16} />{t("trash")}</Button>
-            <Button variant="tertiary" onClick={() => runPreflight(true)}><CheckSquare size={16} />{t("preflight")}</Button>
-            <Button variant="tertiary" onClick={() => setModal("settings")}><Settings size={16} />{t("settings")}</Button>
+            <Button variant="tertiary" className="btn-icon" onClick={openHistory} title={t("history")} aria-label={t("history")}><History size={17} /></Button>
+            <Button variant="tertiary" className="btn-icon" onClick={openTrash} title={t("trash")} aria-label={t("trash")}><Trash2 size={17} /></Button>
+            <Button variant="tertiary" className="btn-icon" onClick={() => runPreflight(true)} title={t("preflight")} aria-label={t("preflight")}><CheckSquare size={17} /></Button>
+            {themeToggle()}
+            <Button variant="tertiary" className="btn-icon" onClick={() => setModal("settings")} title={t("settings")} aria-label={t("settings")}><Settings size={17} /></Button>
             <div className="figma-divider" />
-            <Button onClick={() => toast(t("saved"), "success")}><Save size={16} />{t("save")}</Button>
-            {isHostedBrowserRuntime && <Button onClick={exportProjectArchive}><FileText size={16} />{t("downloadProjectArchive")}</Button>}
-            <Button variant="primary" onClick={() => setModal("export")}><Download size={16} />{t("export")}</Button>
+            <Button onClick={saveProjectNow} disabled={busy} title={`${t("save")} (Ctrl+S)`}><Save size={16} />{t("save")}</Button>
+            {isHostedBrowserRuntime && (
+              <Button variant="tertiary" onClick={exportProjectArchive} disabled={busy} title={t("downloadProjectArchiveHint")}>
+                <Download size={16} />{t("downloadProjectArchive")}
+              </Button>
+            )}
+            <Button variant="primary" onClick={() => setModal("export")} disabled={busy}><Share2 size={16} />{t("export")}</Button>
           </div>
         </header>
         <div className="figma-toolbar">
-          {tools.map((tool) => {
-            const Icon = tool.icon;
-            return <button className={activeTool === tool.id ? "active" : ""} key={tool.id} onClick={() => setActiveTool(tool.id)}><Icon size={17} />{t(tool.key)}</button>;
-          })}
+          <div className="figma-tool-group" role="group" aria-label={t("tools")}>
+            {tools.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <button
+                  className={activeTool === tool.id ? "active" : ""}
+                  key={tool.id}
+                  onClick={() => setActiveTool(tool.id)}
+                  aria-pressed={activeTool === tool.id}
+                  title={t(tool.key)}
+                >
+                  <Icon size={16} />{t(tool.key)}
+                </button>
+              );
+            })}
+          </div>
           <div className="figma-toolbar-spacer" />
-          <Button onClick={() => capture("activeWindow")} disabled={busy}><Camera size={16} />{t("captureActive")}</Button>
-          <Button onClick={() => capture("region")} disabled={busy} title={t("regionDesktopOnly")}><Camera size={16} />{t("captureRegion")}</Button>
+          <Button onClick={() => capture("activeWindow")} disabled={busy} title={t("captureActiveHint")}><Camera size={16} />{t("captureActive")}</Button>
+          {status?.runtimeMode === "desktop" && (
+            <Button onClick={() => capture("region")} disabled={busy}><Scissors size={16} />{t("captureRegion")}</Button>
+          )}
           <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={busy}><Plus size={16} />{t("importImage")}</Button>
         </div>
         <section className="figma-editor-layout">
           <aside className="figma-side-panel">
-            <div className="figma-panel-head"><h2>{t("stepsTitle")}</h2><Button variant="tertiary" onClick={() => fileInputRef.current?.click()}><Plus size={16} /></Button></div>
+            <div className="figma-panel-head">
+              <h2>{t("stepsTitle")}</h2>
+              <div className="figma-inline-actions">
+                <span className="figma-panel-count">{project.steps.length}</span>
+                <Button variant="tertiary" className="btn-sm btn-icon" onClick={() => fileInputRef.current?.click()} title={t("importImage")} aria-label={t("importImage")}><Plus size={16} /></Button>
+              </div>
+            </div>
             <label className="figma-mini-search"><Search size={15} /><input value={stepSearch} onChange={(e) => setStepSearch(e.target.value)} placeholder={t("searchSteps")} /></label>
             <div className="figma-step-list">
-              {filteredSteps.length === 0 ? <div className="figma-mini-empty">{t("emptySteps")}</div> : filteredSteps.map((step, index) => (
+              {filteredSteps.length === 0 ? <div className="figma-mini-empty">{stepSearch ? t("noStepMatches") : t("emptySteps")}</div> : filteredSteps.map((step) => (
                 <button
                   className={`figma-step-thumb ${selectedStep?.id === step.id ? "active" : ""} ${draggingStepId === step.id ? "dragging" : ""}`}
                   key={step.id}
@@ -1096,8 +1227,14 @@ export function App() {
                   onDragEnd={() => setDraggingStepId("")}
                   onKeyDown={(e) => handleStepKeyDown(e, step.id)}
                 >
-                  <div className="figma-step-preview">{step.image_path ? <img src={stepImageUrl(step, project.modified)} alt="" /> : <ImageIcon size={22} />}</div>
-                  <div><strong>{step.title || `${t("step")} ${index + 1}`}</strong><span>{step.description || t("noDescription")}</span></div>
+                  <div className="figma-step-preview">
+                    {step.image_path ? <img src={stepImageUrl(step, project.modified)} alt="" /> : <ImageIcon size={20} />}
+                    <span className="figma-step-index">{stepNumber(step.id)}</span>
+                  </div>
+                  <div className="figma-step-body">
+                    <strong>{step.title || `${t("step")} ${stepNumber(step.id)}`}</strong>
+                    <span>{step.description || t("noDescription")}</span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -1109,7 +1246,10 @@ export function App() {
             </div>
           </section>
           <aside className="figma-side-panel">
-            <div className="figma-panel-head"><h2>{t("properties")}</h2></div>
+            <div className="figma-panel-head">
+              <h2>{t("properties")}</h2>
+              {selectedStep && <span className="figma-panel-count">{t("step")} {stepNumber(selectedStep.id)}</span>}
+            </div>
             {selectedStep ? properties(selectedStep) : <div className="figma-mini-empty">{t("emptySteps")}</div>}
           </aside>
         </section>
@@ -1147,16 +1287,16 @@ export function App() {
     ].filter(Boolean).join(" ");
     return (
       <div className="figma-stage-shell">
-        <div className="figma-stage-actions" aria-label="Canvas zoom">
-          <Button variant="tertiary" onClick={resetZoom}>{Math.round(zoom * 100)}%</Button>
-          <Button variant="tertiary" onClick={fitCanvas}>{t("fit")}</Button>
-          <Button variant="tertiary" onClick={() => zoomBy(-0.15)}>-</Button>
-          <Button variant="tertiary" onClick={() => zoomBy(0.15)}>+</Button>
+        <div className="figma-stage-actions" role="group" aria-label={t("zoom")}>
+          <Button variant="tertiary" className="btn-sm btn-icon" onClick={() => zoomBy(-0.15)} disabled={zoom <= 0.25} title={t("zoomOut")} aria-label={t("zoomOut")}><Minus size={15} /></Button>
+          <Button variant="tertiary" className="btn-sm figma-zoom-value" onClick={zoomToActualSize} title={t("zoomActual")}>{Math.round(displayScale * 100)}%</Button>
+          <Button variant="tertiary" className="btn-sm btn-icon" onClick={() => zoomBy(0.15)} disabled={zoom >= 4} title={t("zoomIn")} aria-label={t("zoomIn")}><Plus size={15} /></Button>
+          <div className="figma-divider" />
+          <Button variant="tertiary" className="btn-sm" onClick={fitCanvas} title={t("fitHint")}><Maximize2 size={14} />{t("fit")}</Button>
         </div>
         <div
           ref={stageRef}
           className={stageClass}
-          onWheel={handleCanvasWheel}
           onPointerDownCapture={startPan}
           onPointerMoveCapture={movePan}
           onPointerUpCapture={endPan}
@@ -1352,32 +1492,36 @@ export function App() {
   function properties(step: Step) {
     return (
       <form className="figma-properties" onSubmit={(e) => e.preventDefault()}>
-        <label>{t("stepTitle")}<input value={step.title} maxLength={TITLE_TEXT_LIMIT} onChange={(e) => saveStep(step.id, { title: e.target.value })} /><small>{step.title.length}/{TITLE_TEXT_LIMIT}</small></label>
-        <label>{t("description")}<textarea value={step.description} onChange={(e) => saveStep(step.id, { description: e.target.value })} /></label>
-        <label>{t("notes")}<textarea value={step.notes[0]?.text ?? ""} onChange={(e) => updateNoteText(e.target.value)} /></label>
-        <label>{t("tags")}<input value={step.tags.join(", ")} onChange={(e) => saveStep(step.id, { tags: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} /></label>
-        <div className="figma-annotation-editor">
-          <h3>{t("crop")}</h3>
-          <span className="figma-panel-note">{step.crop_rect ? `${Math.round(step.crop_rect.w)} x ${Math.round(step.crop_rect.h)}` : t("cropNotSet")}</span>
+        <label>{t("stepTitle")}<input value={step.title} maxLength={TITLE_TEXT_LIMIT} placeholder={`${t("step")} ${stepNumber(step.id)}`} onChange={(e) => saveStep(step.id, { title: e.target.value })} /><small>{step.title.length}/{TITLE_TEXT_LIMIT}</small></label>
+        <label>{t("description")}<textarea value={step.description} placeholder={t("descriptionPlaceholder")} onChange={(e) => saveStep(step.id, { description: e.target.value })} /></label>
+        <label>{t("notes")}<textarea value={step.notes[0]?.text ?? ""} placeholder={t("notesPlaceholder")} onChange={(e) => updateNoteText(e.target.value)} /></label>
+        <label>{t("tags")}<input value={step.tags.join(", ")} placeholder={t("tagsPlaceholder")} onChange={(e) => saveStep(step.id, { tags: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} /></label>
+        <div className="figma-properties-section">
+          <h3>{t("crop")}<span className="figma-panel-note">{step.crop_rect ? `${Math.round(step.crop_rect.w)} × ${Math.round(step.crop_rect.h)}` : t("cropNotSet")}</span></h3>
           <div className="figma-inline-actions">
-            <Button variant="tertiary" onClick={() => setActiveTool("crop")}><Scissors size={16} />{t("cropSelect")}</Button>
-            <Button variant="tertiary" onClick={() => updateCropRect(null)} disabled={!step.crop_rect}>{t("cropReset")}</Button>
+            <Button variant="tertiary" className="btn-sm" onClick={() => setActiveTool("crop")}><Scissors size={15} />{t("cropSelect")}</Button>
+            <Button variant="tertiary" className="btn-sm" onClick={() => updateCropRect(null)} disabled={!step.crop_rect}><RotateCcw size={15} />{t("cropReset")}</Button>
           </div>
         </div>
-        <div className="figma-inline-actions">
-          <Button variant="tertiary" onClick={() => moveStep(-1)}><ArrowLeft size={16} /></Button>
-          <Button variant="tertiary" onClick={() => moveStep(1)}><ArrowRight size={16} /></Button>
-          <Button variant="danger" onClick={deleteStep}><Trash2 size={16} />{t("deleteStep")}</Button>
+        <div className="figma-properties-section">
+          <h3>{t("stepActions")}</h3>
+          <div className="figma-inline-actions">
+            <Button variant="tertiary" className="btn-sm btn-icon" onClick={() => moveStep(-1)} disabled={stepNumber(step.id) <= 1} title={t("moveUp")} aria-label={t("moveUp")}><ArrowLeft size={15} /></Button>
+            <Button variant="tertiary" className="btn-sm btn-icon" onClick={() => moveStep(1)} disabled={stepNumber(step.id) >= project!.steps.length} title={t("moveDown")} aria-label={t("moveDown")}><ArrowRight size={15} /></Button>
+            <Button variant="danger" className="btn-sm" onClick={deleteStep}><Trash2 size={15} />{t("deleteStep")}</Button>
+          </div>
         </div>
         {selectedAnnotation && (
           <div className="figma-annotation-editor">
-            <h3>{t("annotation")}</h3>
+            <h3><Pencil size={13} />{t("annotation")}</h3>
             {selectedAnnotation.type === "text" && <label>{t("text")}<input value={selectedAnnotation.text} onChange={(e) => updateAnnotation({ text: e.target.value })} /></label>}
-            {selectedAnnotation.type === "number" && <label>{t("number")}<input type="number" value={selectedAnnotation.number} onChange={(e) => updateAnnotation({ number: Number(e.target.value) || 1 })} /></label>}
+            {selectedAnnotation.type === "number" && <label>{t("number")}<input type="number" min={1} value={selectedAnnotation.number} onChange={(e) => updateAnnotation({ number: Number(e.target.value) || 1 })} /></label>}
             <label>{t("color")}<input type="color" value={selectedAnnotation.color} onChange={(e) => updateAnnotation({ color: e.target.value })} /></label>
-            <label>{t("lineWidth")}<input type="number" min={1} max={18} value={selectedAnnotation.line_width} onChange={(e) => updateAnnotation({ line_width: Number(e.target.value) || 1 })} /></label>
-            <label>{t("fontSize")}<input type="number" min={8} max={96} value={selectedAnnotation.font_size} onChange={(e) => updateAnnotation({ font_size: Number(e.target.value) || 14 })} /></label>
-            <Button variant="danger" onClick={deleteAnnotation}><Trash2 size={16} />{t("deleteAnnotation")}</Button>
+            <div className="figma-field-row">
+              <label>{t("lineWidth")}<input type="number" min={1} max={18} value={selectedAnnotation.line_width} onChange={(e) => updateAnnotation({ line_width: clamp(Number(e.target.value) || 1, 1, 18) })} /></label>
+              <label>{t("fontSize")}<input type="number" min={8} max={96} value={selectedAnnotation.font_size} onChange={(e) => updateAnnotation({ font_size: clamp(Number(e.target.value) || 14, 8, 96) })} /></label>
+            </div>
+            <Button variant="danger" className="btn-sm" onClick={deleteAnnotation}><Trash2 size={15} />{t("deleteAnnotation")}</Button>
           </div>
         )}
       </form>
@@ -1447,10 +1591,10 @@ export function App() {
             <>
               <h2>{t("exportProject")}</h2><p>{t("exportBody")}</p>
               <div className="figma-export-grid">
-                <ExportChoice icon={FileText} title={t("pdfDocument")} body={t("professionalDocument")} onClick={() => exportCurrent("pdf")} />
-                <ExportChoice icon={FileText} title={t("wordDocument")} body={t("editableDocx")} onClick={() => exportCurrent("docx")} />
-                <ExportChoice icon={ImageIcon} title={t("imageSet")} body={t("composedImages")} onClick={() => exportCurrent("images")} />
-                <ExportChoice icon={Code} title={t("htmlPage")} body={t("standaloneHtml")} onClick={() => exportCurrent("html")} />
+                <ExportChoice icon={FileText} title={t("pdfDocument")} body={t("professionalDocument")} disabled={busy} onClick={() => exportCurrent("pdf")} />
+                <ExportChoice icon={FileType2} title={t("wordDocument")} body={t("editableDocx")} disabled={busy} onClick={() => exportCurrent("docx")} />
+                <ExportChoice icon={ImageIcon} title={t("imageSet")} body={t("composedImages")} disabled={busy} onClick={() => exportCurrent("images")} />
+                <ExportChoice icon={Code} title={t("htmlPage")} body={t("standaloneHtml")} disabled={busy} onClick={() => exportCurrent("html")} />
               </div>
             </>
           )}
@@ -1461,7 +1605,8 @@ export function App() {
                 <div className="figma-preflight-list">
                   {preflight.map((issue) => (
                     <button className={`figma-preflight-item ${issue.severity}`} key={`${issue.code}-${issue.step_id}-${issue.step_index}`} onClick={() => { if (issue.step_id) { setSelectedStepId(issue.step_id); setModal(null); } }}>
-                      <strong>{issue.severity}</strong><span>{issue.message}</span>
+                      <strong>{t(`severity_${issue.severity}`)}</strong>
+                      <span>{issue.step_index >= 0 ? `${t("step")} ${issue.step_index + 1}: ` : ""}{issueMessage(issue)}</span>
                     </button>
                   ))}
                 </div>
@@ -1471,7 +1616,7 @@ export function App() {
           )}
           {modal === "settings" && (
             <>
-              <h2>{t("settings")}</h2><p>InstraDoc Beta v.2</p>
+              <h2>{t("settings")}</h2><p>{status?.appName ?? "InstraDoc"} {status?.versionLabel ?? "Beta v.2"}</p>
               <form className="figma-modal-form" onSubmit={(e) => e.preventDefault()}>
                 <label>{t("language")}<select value={(settingsDraft.language as string) ?? "ru"} onChange={(e) => setSettingsDraft({ ...settingsDraft, language: e.target.value as AppSettings["language"] })}><option value="ru">Русский</option><option value="en">English</option></select></label>
                 <label>{t("theme")}<select value={(settingsDraft.theme_mode as string) ?? "dark"} onChange={(e) => setSettingsDraft({ ...settingsDraft, theme_mode: e.target.value as AppSettings["theme_mode"] })}><option value="dark">{t("dark")}</option><option value="light">{t("light")}</option></select></label>
@@ -1485,8 +1630,8 @@ export function App() {
           {modal === "history" && (
             <>
               <h2>{t("history")}</h2><p>{t("historyBody")}</p>
-              <Button variant="primary" onClick={createSnapshot}><Save size={16} />{t("createSnapshot")}</Button>
-              {historyItems.length === 0 ? <div className="figma-mini-empty">{t("noHistory")}</div> : <div className="figma-history-list">{historyItems.map((item) => <div className="figma-history-item" key={item.snapshot_id}><div><strong>{item.reason || item.snapshot_id}</strong><span>{item.ts}</span>{item.comment && <small>{item.comment}</small>}</div><Button onClick={() => restoreSnapshot(item.snapshot_id)}><RotateCcw size={16} />{t("restore")}</Button></div>)}</div>}
+              <Button variant="primary" onClick={createSnapshot} disabled={busy}><Save size={16} />{t("createSnapshot")}</Button>
+              {historyItems.length === 0 ? <div className="figma-mini-empty">{t("noHistory")}</div> : <div className="figma-history-list">{historyItems.map((item) => <div className="figma-history-item" key={item.snapshot_id}><div><strong>{t(`snapshotReason_${item.reason}`) === `snapshotReason_${item.reason}` ? item.reason || item.snapshot_id : t(`snapshotReason_${item.reason}`)}</strong><span>{formatStamp(item.ts)}</span>{item.comment && <small>{item.comment}</small>}</div><Button className="btn-sm" onClick={() => restoreSnapshot(item.snapshot_id)}><RotateCcw size={15} />{t("restore")}</Button></div>)}</div>}
             </>
           )}
           {modal === "trash" && (
@@ -1494,7 +1639,7 @@ export function App() {
               <h2>{t("trash")}</h2><p>{t("trashBody")}</p>
               {trashItems.length === 0 ? <div className="figma-mini-empty">{t("noTrash")}</div> : (
                 <>
-                  <div className="figma-history-list">{trashItems.map((item) => <div className="figma-history-item" key={item.id}><div><strong>{item.step.title || item.step.id || item.id}</strong><span>{item.deleted_at}</span></div><div className="figma-inline-actions"><Button onClick={() => restoreTrash(item.id)}><RotateCcw size={16} />{t("restore")}</Button><Button variant="danger" onClick={() => deleteTrash(item.id)}><Trash2 size={16} />{t("deleteForever")}</Button></div></div>)}</div>
+                  <div className="figma-history-list">{trashItems.map((item) => <div className="figma-history-item" key={item.id}><div><strong>{item.step.title || t("untitledStep")}</strong><span>{formatStamp(item.deleted_at)}</span></div><div className="figma-inline-actions"><Button className="btn-sm" onClick={() => restoreTrash(item.id)}><RotateCcw size={15} />{t("restore")}</Button><Button variant="danger" className="btn-sm" onClick={() => deleteTrash(item.id)}><Trash2 size={15} />{t("deleteForever")}</Button></div></div>)}</div>
                   <Button variant="danger" onClick={clearTrash}><Trash2 size={16} />{t("clearTrash")}</Button>
                 </>
               )}
@@ -1506,8 +1651,8 @@ export function App() {
   }
 }
 
-function ExportChoice({ icon: Icon, title, body, onClick }: { icon: LucideIcon; title: string; body: string; onClick: () => void }) {
-  return <button className="figma-export-choice" onClick={onClick}><span><Icon size={24} /></span><strong>{title}</strong><small>{body}</small></button>;
+function ExportChoice({ icon: Icon, title, body, onClick, disabled }: { icon: LucideIcon; title: string; body: string; onClick: () => void; disabled?: boolean }) {
+  return <button className="figma-export-choice" onClick={onClick} disabled={disabled}><span><Icon size={22} /></span><strong>{title}</strong><small>{body}</small></button>;
 }
 
 function createAnnotation(type: AnnotationType, x: number, y: number, number: number): Annotation {
@@ -1759,6 +1904,13 @@ function makeId() {
 
 function cloneProject(project: Project): Project {
   return JSON.parse(JSON.stringify(project)) as Project;
+}
+
+// Snapshot/trash stamps are ISO strings; show them in the visitor's locale.
+function formatStamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 function clamp(value: number, min: number, max: number) {

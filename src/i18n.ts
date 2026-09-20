@@ -12,12 +12,12 @@ const dictionaries: Record<Language, Dictionary> = {
     cropNotSet: "\u041e\u0431\u0440\u0435\u0437\u043a\u0430 \u043d\u0435 \u0437\u0430\u0434\u0430\u043d\u0430",
     brandSubtitle: "Простой конструктор пошаговых инструкций",
     newProject: "Новый проект",
-    betaConcept: "Beta v.2 · рабочая web-версия",
+    betaConcept: "рабочая web-версия",
     heroTitle: "InstraDoc — простой конструктор инструкций",
     heroBody: "Создавайте понятные пошаговые инструкции из скриншотов, описаний и аннотаций.",
     searchProjects: "Поиск проектов...",
     recentProjects: "Недавние проекты",
-    visible: "видно",
+    visible: "Показано",
     noProjects: "Проектов пока нет",
     noProjectsBody: "Создайте проект, чтобы начать сценарий Beta v.2.",
     noDescription: "Описание пока не добавлено.",
@@ -45,7 +45,7 @@ const dictionaries: Record<Language, Dictionary> = {
     blur: "Блюр",
     number: "Номер",
     captureFullscreen: "Скриншот",
-    captureActive: "Окно",
+    captureActive: "Снимок экрана",
     captureRegion: "Область",
     importImage: "Импорт",
     searchSteps: "Поиск шагов",
@@ -139,18 +139,51 @@ const dictionaries: Record<Language, Dictionary> = {
     downloadProjectArchive: "Скачать проект",
     projectImported: "Проект импортирован.",
     projectArchiveReady: "Файл проекта готов.",
-    hostedPrivacy: "Проекты хранятся в вашем браузере. Для продолжения работы позже скачайте файл проекта .idoc.zip.",
-    authorLimit: "Имя автора должно быть не длиннее 16 символов."
+    hostedPrivacy: "Проекты хранятся только в вашем браузере и никуда не отправляются. Чтобы продолжить работу позже или на другом устройстве, скачайте файл проекта .idoc.zip.",
+    authorLimit: "Имя автора должно быть не длиннее 16 символов.",
+    projectSaved: "Проект сохранен.",
+    tools: "Инструменты",
+    viewMode: "Режим отображения",
+    viewGrid: "Плитка",
+    viewList: "Список",
+    switchToLight: "Светлая тема",
+    switchToDark: "Темная тема",
+    zoom: "Масштаб",
+    zoomIn: "Увеличить",
+    zoomOut: "Уменьшить",
+    zoomActual: "Реальный размер (100%)",
+    fitHint: "Вписать изображение в область",
+    working: "Идет обработка",
+    dismiss: "Закрыть уведомление",
+    stepActions: "Действия с шагом",
+    moveUp: "Переместить выше",
+    moveDown: "Переместить ниже",
+    untitledStep: "Шаг без названия",
+    noStepMatches: "Ничего не найдено по этому запросу.",
+    descriptionPlaceholder: "Что нужно сделать на этом шаге?",
+    notesPlaceholder: "Подсказка, предупреждение или комментарий",
+    tagsPlaceholder: "Через запятую",
+    captureActiveHint: "Браузер спросит, каким окном или экраном поделиться.",
+    downloadProjectArchiveHint: "Сохранить проект файлом, чтобы открыть его позже.",
+    severity_critical: "Критично",
+    severity_warning: "Внимание",
+    severity_info: "Инфо",
+    preflight_no_steps: "В проекте нет шагов.",
+    preflight_missing_image: "У шага нет изображения.",
+    preflight_empty_title: "У шага нет заголовка.",
+    preflight_empty_description: "У шага нет описания.",
+    snapshotReason_manual: "Ручной снимок",
+    snapshotReason_auto: "Автоснимок"
   },
   en: {
     brandSubtitle: "Easy step-by-step instruction maker",
     newProject: "New Project",
-    betaConcept: "Beta v.2 · working web build",
+    betaConcept: "working web build",
     heroTitle: "InstraDoc — easy instruction-maker",
     heroBody: "Create clear step-by-step instructions from screenshots, descriptions, and annotations.",
     searchProjects: "Search projects...",
     recentProjects: "Recent Projects",
-    visible: "visible",
+    visible: "Shown",
     noProjects: "No projects yet",
     noProjectsBody: "Create a project to start the Beta v.2 workflow.",
     noDescription: "No description yet.",
@@ -182,7 +215,7 @@ const dictionaries: Record<Language, Dictionary> = {
     cropReset: "Reset crop",
     cropNotSet: "Crop is not set",
     captureFullscreen: "Screenshot",
-    captureActive: "Window",
+    captureActive: "Capture screen",
     captureRegion: "Region",
     importImage: "Import",
     searchSteps: "Search steps",
@@ -276,12 +309,61 @@ const dictionaries: Record<Language, Dictionary> = {
     downloadProjectArchive: "Download project",
     projectImported: "Project imported.",
     projectArchiveReady: "Project file is ready.",
-    hostedPrivacy: "Projects are stored in your browser. Download a .idoc.zip project file to continue later.",
-    authorLimit: "Author name must be 16 characters or fewer."
+    hostedPrivacy: "Projects are stored in your browser only and are never uploaded. Download a .idoc.zip project file to continue later or on another device.",
+    authorLimit: "Author name must be 16 characters or fewer.",
+    projectSaved: "Project saved.",
+    tools: "Tools",
+    viewMode: "View mode",
+    viewGrid: "Grid",
+    viewList: "List",
+    switchToLight: "Light theme",
+    switchToDark: "Dark theme",
+    zoom: "Zoom",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    zoomActual: "Actual size (100%)",
+    fitHint: "Fit the image to the stage",
+    working: "Working",
+    dismiss: "Dismiss notification",
+    stepActions: "Step actions",
+    moveUp: "Move earlier",
+    moveDown: "Move later",
+    untitledStep: "Untitled step",
+    noStepMatches: "Nothing matches this search.",
+    descriptionPlaceholder: "What should the reader do here?",
+    notesPlaceholder: "A tip, a warning or a comment",
+    tagsPlaceholder: "Comma separated",
+    captureActiveHint: "Your browser will ask which window or screen to share.",
+    downloadProjectArchiveHint: "Save the project as a file so you can reopen it later.",
+    severity_critical: "Critical",
+    severity_warning: "Warning",
+    severity_info: "Info",
+    preflight_no_steps: "The project has no steps.",
+    preflight_missing_image: "This step has no image.",
+    preflight_empty_title: "This step has no title.",
+    preflight_empty_description: "This step has no description.",
+    snapshotReason_manual: "Manual snapshot",
+    snapshotReason_auto: "Automatic snapshot"
   }
 };
 
 export function makeTranslator(language: Language | undefined) {
   const dict = dictionaries[language ?? "ru"] ?? dictionaries.ru;
   return (key: string) => dict[key] ?? dictionaries.en[key] ?? key;
+}
+
+/**
+ * "1 шаг / 2 шага / 5 шагов" — Russian needs three forms, so a plain dictionary
+ * lookup would always print the wrong one for small counts.
+ */
+export function makeStepCounter(language: Language | undefined) {
+  if ((language ?? "ru") === "en") return (count: number) => `${count} ${count === 1 ? "step" : "steps"}`;
+  return (count: number) => {
+    const tens = count % 100;
+    const ones = count % 10;
+    if (tens >= 11 && tens <= 14) return `${count} шагов`;
+    if (ones === 1) return `${count} шаг`;
+    if (ones >= 2 && ones <= 4) return `${count} шага`;
+    return `${count} шагов`;
+  };
 }
