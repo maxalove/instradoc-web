@@ -29,7 +29,7 @@ Use only the `hosted-browser` build for a public domain.
 
 ## Build
 
-From `web/`:
+From the repository root:
 
 ```powershell
 npm ci
@@ -39,10 +39,10 @@ npm run build:hosted
 Publish only:
 
 ```text
-web/dist/
+dist/
 ```
 
-Upload the contents of `web/dist/`, not the `dist` folder itself.
+Upload the contents of `dist/`, not the `dist` folder itself.
 
 Do not publish:
 
@@ -62,22 +62,19 @@ Recommended first targets:
 
 - Cloudflare Pages
 - Netlify
-- Any static hosting/CDN that can serve `web/dist`
+- Any static hosting/CDN that can serve `dist`
 
 Build settings:
 
 ```text
-Root directory: web
-Build command: npm ci && npm run build:hosted
-Publish directory: web/dist
-```
-
-If the hosting provider runs the build from inside `web/`, use:
-
-```text
+Root directory: /
 Build command: npm ci && npm run build:hosted
 Publish directory: dist
 ```
+
+The `hosted-browser` runtime is switched on by `.env.hosted-browser`
+(`VITE_INSTRADOC_RUNTIME=hosted-browser`), which is committed to the repository. Without it the
+build expects a local Python sidecar on `127.0.0.1:8765` and will not work on a public domain.
 
 ## ISPManager / Apache
 
@@ -89,7 +86,7 @@ Recommended path for ISPManager:
 4. Build the hosted release locally:
 
 ```powershell
-cd C:\Users\Lj29\OneDrive\Документы\Dev\Instrasko\web
+cd path/to/instradoc-web
 npm ci
 npm run build:hosted
 ```
@@ -98,7 +95,7 @@ npm run build:hosted
 6. Upload every item from:
 
 ```text
-C:\Users\Lj29\OneDrive\Документы\Dev\Instrasko\web\dist\
+dist/
 ```
 
 Required uploaded items:
@@ -148,16 +145,16 @@ Use a separate VPS instead of shared ISPManager hosting only when one of these b
 The repository includes:
 
 ```text
-web/public/_headers
-web/public/.htaccess
-web/public/robots.txt
+public/_headers
+public/.htaccess
+public/robots.txt
 ```
 
-Vite copies this file into `web/dist/_headers`. Cloudflare Pages and Netlify can apply it automatically.
+Vite copies this file into `dist/_headers`. Cloudflare Pages and Netlify can apply it automatically.
 
-Vite also copies `.htaccess` into `web/dist/.htaccess`. ISPManager/Apache can use it for SPA fallback, directory listing protection, security headers, and cache policy.
+Vite also copies `.htaccess` into `dist/.htaccess`. ISPManager/Apache can use it for SPA fallback, directory listing protection, security headers, and cache policy.
 
-Vite also copies `robots.txt` into `web/dist/robots.txt`. Update the sitemap URL inside the file to the real production domain before publishing if the final domain is not `instradoc.example.com`.
+Vite also copies `robots.txt` into `dist/robots.txt`. It allows all crawlers and declares no sitemap; add a `Sitemap:` line pointing at your production domain if you later generate one.
 
 If the provider does not support `_headers`, configure equivalent headers manually:
 

@@ -20,15 +20,32 @@ The current codebase is designed for two runtime paths:
 - `hosted-browser`: static hosting on a public domain with no Python sidecar
 - `tauri`: optional desktop shell for local workflows and future packaged builds
 
-The web version is already available at the link: https://instradoc.mxlv.pw/
+Live version: **https://instradoc.mxlv.pw/**
+
 ## Highlights
 
-- Browser-first instruction editor with import/export flows
-- Local draft persistence for the hosted public build
+- Browser-first instruction editor: import, paste or capture screenshots
+- Annotations — arrow, rectangle, circle, text, number, highlight, blur, pencil, crop
+- Canvas zoom and pan, undo/redo, drag-and-drop step reordering
+- Projects persisted locally in IndexedDB in the hosted build
+- Snapshot history and a step trash bin
+- Preflight checks before export
 - PDF, DOCX, HTML, and images ZIP export in the frontend
-- Shared design tokens and modern glass-style UI system
+- Move a project between devices as a `.idoc.zip` archive
+- Light and dark themes from shared design tokens, Russian and English UI
 - Typed API layer for hosted and sidecar-backed runtimes
 - Ready-to-publish static build for ISPManager, Apache, Netlify, or Cloudflare Pages
+
+## Keyboard Shortcuts
+
+| Keys | Action |
+| --- | --- |
+| `Ctrl+S` | Save the project |
+| `Ctrl+Z` / `Ctrl+Shift+Z`, `Ctrl+Y` | Undo / redo |
+| `Delete`, `Backspace` | Delete the selected annotation |
+| `Ctrl+V` | Paste an image from the clipboard as a new step |
+| `Space` + drag, mouse wheel | Pan and zoom the canvas |
+| `Alt+↑` / `Alt+↓` | Move the step within the list |
 
 ## Tech Stack
 
@@ -127,39 +144,42 @@ The repository also includes:
 - `_headers` for platforms that support file-based header config
 - `site.webmanifest` and app icons for installable behavior
 
-Detailed release notes and ISPManager guidance live in [`HOSTED_WEB_DEPLOY_ENG.md`](../HOSTED_WEB_DEPLOY_ENG.md).
+Detailed release notes and ISPManager guidance live in [`HOSTED_WEB_DEPLOY_ENG.md`](./HOSTED_WEB_DEPLOY_ENG.md).
+
+## Runtime Modes
+
+The runtime is selected by `VITE_INSTRADOC_RUNTIME`:
+
+- `.env.hosted-browser` sets `VITE_INSTRADOC_RUNTIME=hosted-browser` and is picked up by the
+  `dev:hosted` and `build:hosted` scripts. Projects live in the browser's IndexedDB and all
+  export work happens client-side.
+- Without that variable (`npm run dev` / `npm run build`) the app talks to a local sidecar at
+  `http://127.0.0.1:8765`. Override the address with `VITE_INSTRADOC_API`.
+
+`.env.hosted-browser` is committed on purpose: without it a public build tries to reach
+localhost and does not work.
 
 ## Tauri Notes
 
-The `src-tauri/` folder is included for desktop shell work, but the public hosted release does not require Rust, Tauri packaging, or a Python sidecar.
+The `src-tauri/` folder ships with the repository, but `npm run tauri:build` will not
+succeed from this standalone repo: `tauri.conf.json` lists the Python sidecar
+(`../../sidecar`, `../../sidecar_main.py`, `../../requirements.txt`) under
+`bundle.resources`, and those live in the main InstraDoc monorepo. The public hosted
+release needs neither Rust, Tauri, nor Python.
 
-If you want to work on the shell locally:
+Run the desktop shell in development with:
 
 ```powershell
 npm run tauri:dev
 ```
 
-## Publishing This Source on GitHub
-
-If you plan to publish only the web source code as a separate repository, include:
-
-- `public/`
-- `src/`
-- `src-tauri/`
-- `index.html`
-- `package.json`
-- `package-lock.json`
-- `tsconfig.json`
-- `vite.config.ts`
-- `.env.hosted-browser`
-- `README.md`
-
-Do not publish:
-
-- `node_modules/`
-- `dist/`
-- local release archives
-
 ## Status
 
-This is an active beta codebase. The hosted public build is already suitable for preview deployment, while the desktop shell and deeper backend-backed workflows are still evolving.
+Active beta. The hosted build is ready to publish: editor, annotations, export, themes
+and localisation all work. The desktop shell and backend-backed workflows are still evolving.
+
+## License
+
+No license has been chosen yet. Without one, default copyright applies and third parties
+may not use, modify or redistribute the code. If this repository is meant to be open
+source, add a `LICENSE` file (MIT, for example).

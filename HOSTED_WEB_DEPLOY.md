@@ -29,7 +29,7 @@
 
 ## Сборка
 
-Из папки `web/`:
+Из корня репозитория:
 
 ```powershell
 npm ci
@@ -39,7 +39,7 @@ npm run build:hosted
 Публиковать нужно только содержимое:
 
 ```text
-web/dist/
+dist/
 ```
 
 Загружайте именно файлы из `dist`, а не папку `dist` целиком внутрь другой папки.
@@ -70,17 +70,14 @@ node_modules/
 Если хостинг сам выполняет сборку:
 
 ```text
-Root directory: web
-Build command: npm ci && npm run build:hosted
-Publish directory: web/dist
-```
-
-Если сборка запускается уже из папки `web/`:
-
-```text
+Root directory: /
 Build command: npm ci && npm run build:hosted
 Publish directory: dist
 ```
+
+Режим `hosted-browser` включается файлом `.env.hosted-browser` (`VITE_INSTRADOC_RUNTIME=hosted-browser`),
+который лежит в репозитории. Без него сборка будет ожидать локальный Python sidecar на `127.0.0.1:8765`
+и на публичном домене работать не будет.
 
 ## Деплой через ISPManager / Apache
 
@@ -92,7 +89,7 @@ Publish directory: dist
 4. Соберите hosted-версию локально:
 
 ```powershell
-cd C:\Users\Lj29\OneDrive\Документы\Dev\Instrasko\web
+cd path/to/instradoc-web
 npm ci
 npm run build:hosted
 ```
@@ -101,7 +98,7 @@ npm run build:hosted
 6. Загрузите туда всё содержимое из:
 
 ```text
-C:\Users\Lj29\OneDrive\Документы\Dev\Instrasko\web\dist\
+dist/
 ```
 
 Обязательные элементы:
@@ -139,12 +136,12 @@ android-chrome-512x512.png
 В проекте уже есть:
 
 ```text
-web/public/_headers
-web/public/.htaccess
-web/public/robots.txt
+public/_headers
+public/.htaccess
+public/robots.txt
 ```
 
-Во время сборки они попадают в `web/dist`.
+Во время сборки они попадают в `dist`.
 
 Ожидаемые защитные заголовки:
 
